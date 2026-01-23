@@ -168,7 +168,9 @@
 			<HintPath>$(BONELAB_DIR)\MelonLoader\Il2CppAssemblies\UnityEngine.UIModule.dll</HintPath>
 		</Reference>
 	</ItemGroup>
-	
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<Exec Command="COPY &quot;$(TargetPath)&quot; &quot;$(BONELAB_DIR)\Mods&quot;" />
+	</Target>
 	<ItemGroup>
 	  <Folder Include="Resources\" />
 	</ItemGroup>
