@@ -59,7 +59,7 @@ namespace Riptide
             return pendingMessage;
         }
 
-        /// <summary>Retrieves a <see cref="PendingMessage"/> instance from the pool. If none is available, a new instance is created.</summary>
+        /// <summary>Retrieves a <see cref="PendingMessage"/> instance from the pool. If Idle is available, a new instance is created.</summary>
         /// <returns>A <see cref="PendingMessage"/> instance.</returns>
         private static PendingMessage RetrieveFromPool()
         {

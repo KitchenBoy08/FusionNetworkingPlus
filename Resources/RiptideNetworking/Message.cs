@@ -189,7 +189,7 @@ namespace Riptide
             }
         }
 
-        /// <summary>Retrieves a message instance from the pool. If none is available, a new instance is created.</summary>
+        /// <summary>Retrieves a message instance from the pool. If Idle is available, a new instance is created.</summary>
         /// <returns>A message instance ready to be used for sending or handling.</returns>
         private static Message RetrieveFromPool()
         {

@@ -1,4 +1,5 @@
-﻿using FNPlus.Patches;
+﻿//using FNPlus.Patches;
+using FNPlus.Network.Riptide;
 using FNPlus.Utilites;
 using Il2CppTMPro;
 using LabFusion.Menu;
@@ -9,9 +10,15 @@ namespace FNPlus.Network
 {
     public class RiptideNetworkLayer : NetworkLayer
     {
-        private IVoiceManager voiceManager;
+        private IVoiceManager voiceManager = null;
+        public override IVoiceManager VoiceManager => voiceManager;
 
-        private static Transform _pingDisplayTransform = null;
+        private RiptideLobby _lobbyRef = null;
+        private RiptideLobby _currentLobby = null;
+        public override INetworkLobby Lobby => _currentLobby;
+
+        private RiptideMatchmaker _matchmaker = null;
+        public override IMatchmaker Matchmaker => _matchmaker;
 
         internal static TMP_Text PingDisplayTMP = null;
 
@@ -22,8 +29,6 @@ namespace FNPlus.Network
         public override string Title => "Riptide";
 
         public override string Platform => "P2P";
-
-        public override IVoiceManager VoiceManager => voiceManager;
 
         public override bool IsHost => RiptideThreader.IsServerRunning;
 
@@ -36,18 +41,22 @@ namespace FNPlus.Network
         public override bool CheckValidation() => true;
 
         // Riptide doesn't really have a way to add these features out of the box...
-        public override string GetUsername(ulong userId) => $"Riptide Enjoyer {userId}";
-        public override bool IsFriend(ulong userId) => false;
+        public override string GetUsername(string userId) => $"Riptide Enjoyer {userId}";
+        public override bool IsFriend(string userId) => false;
 
         public override void LogIn() => InvokeLoggedInEvent();
         public override void LogOut() => InvokeLoggedOutEvent();
 
         public override void OnInitializeLayer()
         {
+            _matchmaker = new RiptideMatchmaker();
             RiptideThreader.StartThread();
             HookRiptideEvents();
+
+
             voiceManager = new UnityVoiceManager();
             voiceManager.Enable();
+
             CreateRiptideUIElements();
         }
 
@@ -55,9 +64,12 @@ namespace FNPlus.Network
         {
             voiceManager.Disable();
             voiceManager = null;
-
+            _matchmaker = null;
+            _lobbyRef = null;
+            _currentLobby = null;
             Disconnect();
 
+            _matchmaker.Kill();
             RiptideThreader.KillThread();
 
             UnhookRiptideEvents();
@@ -84,7 +96,7 @@ namespace FNPlus.Network
         static Transform pingDisplayTransform = null;
         internal static void CreateRiptideUIElements()
         {
-            MenuMatchmakingPatches.HideOptions();
+            //MenuMatchmakingPatches.HideOptions();
 
             if (!pingDisplayTransform)
             {
@@ -101,7 +113,7 @@ namespace FNPlus.Network
 
         internal static void RemoveRiptideUIElements()
         {
-            MenuMatchmakingPatches.ShowOptions();
+            //MenuMatchmakingPatches.ShowOptions();
 
             if (pingDisplayTransform)
                 pingDisplayTransform.gameObject.SetActive(false);
@@ -156,11 +168,13 @@ namespace FNPlus.Network
 
         public override void StartServer()
         {
+            _matchmaker.Server();
             RiptideThreader.StartServer();
         }
 
         public override void Disconnect(string reason = "")
         {
+            _matchmaker.Kill();
             RiptideThreader.Disconnect();
         }
 
@@ -215,12 +229,12 @@ namespace FNPlus.Network
             }
         }
 
-        public override void SendFromServer(ulong userId, NetworkChannel channel, NetMessage message)
+        public override void SendFromServer(string userId, NetworkChannel channel, NetMessage message)
         {
             byte[] data = message.ToByteArray();
             MessageSendMode sendMode = GetSendMode(channel);
 
-            var messageTuple = new Tuple<byte[], MessageSendMode, ushort, bool>(data, sendMode, (ushort)userId, false);
+            var messageTuple = new Tuple<byte[], MessageSendMode, ushort, bool>(data, sendMode, ushort.Parse(userId), false);
 
             RiptideThreader.ServerSendQueue.Enqueue(messageTuple);
         }
@@ -240,7 +254,7 @@ namespace FNPlus.Network
                 RiptideThreader.ClientSendQueue.Enqueue(messageTuple);
         }
 
-        public override void DisconnectUser(ulong platformID) {
+        public override void DisconnectUser(string platformID) {
             RiptideThreader.KickPlayer(platformID);
         }
     }

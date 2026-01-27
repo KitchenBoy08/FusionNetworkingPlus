@@ -52,7 +52,7 @@ namespace Riptide.Transports.Tcp
             StartListening(port);
         }
 
-        /// <summary>Starts listening for connections on the given port.</summary>
+        /// <summary>Starts Listening for connections on the given port.</summary>
         /// <param name="port">The port to listen on.</param>
         private void StartListening(ushort port)
         {
@@ -106,7 +106,7 @@ namespace Riptide.Transports.Tcp
             }
         }
 
-        /// <summary>Stops listening for connections.</summary>
+        /// <summary>Stops Listening for connections.</summary>
         private void StopListening()
         {
             if (!isRunning)

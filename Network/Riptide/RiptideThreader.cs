@@ -185,13 +185,13 @@ namespace FNPlus.Network
                     return;
 
                 // Make sure the user hasn't previously disconnected
-                if (PlayerIDManager.HasPlayerID(ID))
+                if (PlayerIDManager.HasPlayerID(ID.ToString()))
                 {
                     // Update the mod so it knows this user has left
-                    InternalServerHelpers.OnPlayerLeft(ID);
+                    InternalServerHelpers.OnPlayerLeft(ID.ToString());
 
                     // Send disconnect notif to everyone
-                    ConnectionSender.SendDisconnect(ID);
+                    ConnectionSender.SendDisconnect(ID.ToString());
                 }
             }));
         }
@@ -229,7 +229,7 @@ namespace FNPlus.Network
 
                         RiptideNetworkLayer.ActionQueue.Enqueue(() =>
                         {
-                            PlayerIDManager.SetLongID(_riptideClient.Id);
+                            PlayerIDManager.SetPlatformID(_riptideClient.Id.ToString());
 
                             InternalServerHelpers.OnStartServer();
                         });
@@ -316,7 +316,7 @@ namespace FNPlus.Network
 
                     RiptideNetworkLayer.ActionQueue.Enqueue(() =>
                     {
-                        PlayerIDManager.SetLongID(_riptideClient.Id);
+                        PlayerIDManager.SetPlatformID(_riptideClient.Id.ToString());
 
                         ConnectionSender.SendConnectionRequest();
                     });
@@ -371,9 +371,9 @@ namespace FNPlus.Network
             RiptideNetworkLayer.MessageQueue.Enqueue(new Tuple<byte[], bool>(e.Message.GetBytes(), false));
         }
 
-        internal static void KickPlayer(ulong platformID) {
+        internal static void KickPlayer(string platformID) {
             lock (_riptideServer) {
-                _riptideServer.DisconnectClient((ushort)platformID);
+                _riptideServer.DisconnectClient(ushort.Parse(platformID));
             }
         }
     }
