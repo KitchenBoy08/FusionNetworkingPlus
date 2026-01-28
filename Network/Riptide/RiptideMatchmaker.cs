@@ -10,14 +10,15 @@ namespace FNPlus.Network.Riptide {
             LanDiscovery = new(314, 25000);
             LanDiscovery.Mode = BroadcastMode.Idle;
             LanDiscovery.BroadcastPort = 25000;
-            MultiplayerHooking.OnFixedUpdate += LanDiscovery.Tick;
+            LanDiscovery.Bind();
+            MelonEvents.OnFixedUpdate.Subscribe(LanDiscovery.Tick);
             LanDiscovery.HostDiscovered += OnHostDiscovered;
         }
         public void Kill() {
             try {
                 addresses.Clear();
                 callbacks.Clear();
-                MultiplayerHooking.OnFixedUpdate -= LanDiscovery.Tick;
+                MelonEvents.OnFixedUpdate.Unsubscribe(LanDiscovery.Tick);
                 LanDiscovery.HostDiscovered -= OnHostDiscovered;
                 LanDiscovery.Stop();
                 LanDiscovery = null;

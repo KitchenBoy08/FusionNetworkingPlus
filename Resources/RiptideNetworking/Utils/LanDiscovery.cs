@@ -53,6 +53,9 @@ namespace Riptide.Utils {
                 }
             }
         }
+        public void Bind() {
+            socket.Bind(endPoint);
+        }
         private ushort _broadcastPort;
         /// <summary>The IP to broadcast.</summary>
         public IPAddress HostIP {
