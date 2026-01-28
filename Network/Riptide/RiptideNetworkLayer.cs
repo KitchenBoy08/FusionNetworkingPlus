@@ -50,6 +50,7 @@ namespace FNPlus.Network
         public override void OnInitializeLayer()
         {
             _matchmaker = new RiptideMatchmaker();
+            _matchmaker.Start();
             RiptideThreader.StartThread();
             HookRiptideEvents();
 
@@ -64,12 +65,12 @@ namespace FNPlus.Network
         {
             voiceManager.Disable();
             voiceManager = null;
+            _matchmaker.Kill();
             _matchmaker = null;
             _lobbyRef = null;
             _currentLobby = null;
             Disconnect();
 
-            _matchmaker.Kill();
             RiptideThreader.KillThread();
 
             UnhookRiptideEvents();
@@ -168,13 +169,12 @@ namespace FNPlus.Network
 
         public override void StartServer()
         {
-            _matchmaker.Server();
             RiptideThreader.StartServer();
+            _matchmaker.Server();
         }
 
         public override void Disconnect(string reason = "")
         {
-            _matchmaker.Kill();
             RiptideThreader.Disconnect();
         }
 

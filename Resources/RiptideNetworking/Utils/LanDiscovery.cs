@@ -84,6 +84,7 @@ namespace Riptide.Utils {
         /// <param name="uniqueKey">This app's unique key, used to determine whether to handle or ignore received data.</param>
         /// <param name="broadcastPort">The port to send broadcasts to/listen for broadcasts on.</param>
         public LanDiscovery(long uniqueKey, ushort broadcastPort) {
+            Mode = BroadcastMode.Idle;
             actionQueue = new ActionQueue();
             UniqueKey = uniqueKey;
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
@@ -103,8 +104,9 @@ namespace Riptide.Utils {
                 return;
             }
 
-            if (Mode == BroadcastMode.Idle)
+            if (Mode == BroadcastMode.Idle) {
                 socket.BeginReceiveFrom(broadcastReceiveBytes, 0, broadcastReceiveBytes.Length, SocketFlags.None, ref endPoint, ReceiveCallback, null);
+            }
 
             Mode = BroadcastMode.Broadcasting;
 
