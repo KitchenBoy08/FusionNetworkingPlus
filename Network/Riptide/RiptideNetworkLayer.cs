@@ -1,47 +1,74 @@
-﻿using FNPlus.Patches;
+﻿//using FNPlus.Patches;
+using FNPlus.Network.Riptide;
+using FNPlus.Utilites;
 using Il2CppTMPro;
 using LabFusion.Menu;
+using LabFusion.UI.Popups;
 using Riptide;
 
 namespace FNPlus.Network
 {
     public class RiptideNetworkLayer : NetworkLayer
     {
+        private IVoiceManager voiceManager = null;
+        public override IVoiceManager VoiceManager => voiceManager;
+
+        private RiptideLobby _lobbyRef = null;
+        private RiptideLobby _currentLobby = null;
+        public override INetworkLobby Lobby => _currentLobby;
+
+        private RiptideMatchmaker _matchmaker = null;
+        public override IMatchmaker Matchmaker => _matchmaker;
+
+        internal static TMP_Text PingDisplayTMP = null;
+
+        internal static readonly ConcurrentQueue<Tuple<byte[], bool>> MessageQueue = new ConcurrentQueue<Tuple<byte[], bool>>();
+
+        internal static readonly ConcurrentQueue<Action> ActionQueue = new ConcurrentQueue<Action>();
+
         public override string Title => "Riptide";
 
-        private IVoiceManager _voiceManager = null;
-        public override IVoiceManager VoiceManager => _voiceManager;
+        public override string Platform => "P2P";
 
-        public override bool IsServer => RiptideThreader.IsServerRunning;
+        public override bool IsHost => RiptideThreader.IsServerRunning;
+
         public override bool IsClient => RiptideThreader.IsClientConnected;
 
+        private string ServerCode {
+            get; set;
+        }
         public override bool CheckSupported() => true;
         public override bool CheckValidation() => true;
 
         // Riptide doesn't really have a way to add these features out of the box...
-        public override string GetUsername(ulong userId) => $"Riptide Enjoyer {userId}";
-        public override bool IsFriend(ulong userId) => false;
+        public override string GetUsername(string userId) => $"Riptide Enjoyer {userId}";
+        public override bool IsFriend(string userId) => false;
 
         public override void LogIn() => InvokeLoggedInEvent();
         public override void LogOut() => InvokeLoggedOutEvent();
 
         public override void OnInitializeLayer()
         {
+            _matchmaker = new RiptideMatchmaker();
+            _matchmaker.Start();
             RiptideThreader.StartThread();
-
             HookRiptideEvents();
 
-            _voiceManager = new UnityVoiceManager();
-            _voiceManager.Enable();
+
+            voiceManager = new UnityVoiceManager();
+            voiceManager.Enable();
 
             CreateRiptideUIElements();
         }
 
         public override void OnDeinitializeLayer()
         {
-            _voiceManager.Disable();
-            _voiceManager = null;
-
+            voiceManager.Disable();
+            voiceManager = null;
+            _matchmaker.Kill();
+            _matchmaker = null;
+            _lobbyRef = null;
+            _currentLobby = null;
             Disconnect();
 
             RiptideThreader.KillThread();
@@ -54,24 +81,23 @@ namespace FNPlus.Network
         private void HookRiptideEvents()
         {
             // Add server hooks
-            MultiplayerHooking.OnPlayerJoin += OnPlayerJoin;
-            MultiplayerHooking.OnPlayerLeave += OnPlayerLeave;
-            MultiplayerHooking.OnDisconnect += OnDisconnect;
+            MultiplayerHooking.OnPlayerJoined += OnPlayerJoin;
+            MultiplayerHooking.OnPlayerLeft += OnPlayerLeave;
+            MultiplayerHooking.OnDisconnected += OnDisconnect;
         }
 
         private void UnhookRiptideEvents()
         {
             // Remove server hooks
-            MultiplayerHooking.OnPlayerJoin -= OnPlayerJoin;
-            MultiplayerHooking.OnPlayerLeave -= OnPlayerLeave;
-            MultiplayerHooking.OnDisconnect -= OnDisconnect;
+            MultiplayerHooking.OnPlayerJoined -= OnPlayerJoin;
+            MultiplayerHooking.OnPlayerLeft -= OnPlayerLeave;
+            MultiplayerHooking.OnDisconnected -= OnDisconnect;
         }
 
         static Transform pingDisplayTransform = null;
-        internal static TMP_Text PingDisplayTMP = null;
         internal static void CreateRiptideUIElements()
         {
-            MenuMatchmakingPatches.HideOptions();
+            //MenuMatchmakingPatches.HideOptions();
 
             if (!pingDisplayTransform)
             {
@@ -88,13 +114,13 @@ namespace FNPlus.Network
 
         internal static void RemoveRiptideUIElements()
         {
-            MenuMatchmakingPatches.ShowOptions();
+            //MenuMatchmakingPatches.ShowOptions();
 
             if (pingDisplayTransform)
                 pingDisplayTransform.gameObject.SetActive(false);
         }
 
-        private void OnPlayerJoin(PlayerId id)
+        private void OnPlayerJoin(PlayerID id)
         {
             if (VoiceManager == null)
             {
@@ -107,7 +133,7 @@ namespace FNPlus.Network
             }
         }
 
-        private void OnPlayerLeave(PlayerId id)
+        private void OnPlayerLeave(PlayerID id)
         {
             if (VoiceManager == null)
             {
@@ -121,9 +147,6 @@ namespace FNPlus.Network
         {
             VoiceManager.ClearManager();
         }
-
-        internal static readonly ConcurrentQueue<Tuple<byte[], bool>> MessageQueue = new();
-        internal static readonly ConcurrentQueue<Action> ActionQueue = new();
         public override void OnUpdateLayer()
         {
             for (int i = 0; i < MessageQueue.Count; i++)
@@ -132,8 +155,10 @@ namespace FNPlus.Network
                 {
                     byte[] bytes = messageTuple.Item1;
                     bool isServerHandled = messageTuple.Item2;
-
-                    FusionMessageHandler.ReadMessage(bytes, isServerHandled);
+                    ReadableMessage message = new();
+                    message.Buffer = bytes;
+                    message.IsServerHandled = isServerHandled;
+                    NativeMessageHandler.ReadMessage(message);
                 }
             }
 
@@ -145,6 +170,7 @@ namespace FNPlus.Network
         public override void StartServer()
         {
             RiptideThreader.StartServer();
+            _matchmaker.Server();
         }
 
         public override void Disconnect(string reason = "")
@@ -152,7 +178,6 @@ namespace FNPlus.Network
             RiptideThreader.Disconnect();
         }
 
-        public string ServerCode { get; private set; } = null;
         public override string GetServerCode() => ServerCode;
 
         public override void RefreshServerCode()
@@ -160,7 +185,7 @@ namespace FNPlus.Network
             ServerCode = IPUtils.EncodeIPAddress(Utilities.PlayerInfo.PlayerIpAddress);
             GUIUtility.systemCopyBuffer = ServerCode;
 
-            FusionNotifier.Send(new FusionNotification()
+            Notifier.Send(new Notification()
             {
                 SaveToMenu = false,
                 Message = "Saved Code to Clipboard!",
@@ -184,7 +209,7 @@ namespace FNPlus.Network
             };
         }
 
-        public override void BroadcastMessage(NetworkChannel channel, FusionMessage message)
+        public override void BroadcastMessage(NetworkChannel channel, NetMessage message)
         {
             byte[] data = message.ToByteArray();
             MessageSendMode sendMode = GetSendMode(channel);
@@ -194,37 +219,43 @@ namespace FNPlus.Network
             RiptideThreader.ServerSendQueue.Enqueue(messageTuple);
         }
 
-        public override void SendFromServer(byte userId, NetworkChannel channel, FusionMessage message)
+        public override void SendFromServer(byte userId, NetworkChannel channel, NetMessage message)
         {
-            var id = PlayerIdManager.GetPlayerId(userId);
+            var id = PlayerIDManager.GetPlayerID(userId);
 
             if (id != null)
             {
-                SendFromServer(id.LongId, channel, message);
+                SendFromServer(id.PlatformID, channel, message);
             }
         }
 
-        public override void SendFromServer(ulong userId, NetworkChannel channel, FusionMessage message)
+        public override void SendFromServer(string userId, NetworkChannel channel, NetMessage message)
         {
             byte[] data = message.ToByteArray();
             MessageSendMode sendMode = GetSendMode(channel);
 
-            var messageTuple = new Tuple<byte[], MessageSendMode, ushort, bool>(data, sendMode, (ushort)userId, false);
+            var messageTuple = new Tuple<byte[], MessageSendMode, ushort, bool>(data, sendMode, ushort.Parse(userId), false);
 
             RiptideThreader.ServerSendQueue.Enqueue(messageTuple);
         }
 
-        public override void SendToServer(NetworkChannel channel, FusionMessage message)
+        public override void SendToServer(NetworkChannel channel, NetMessage message)
         {
             byte[] data = message.ToByteArray();
             MessageSendMode sendMode = GetSendMode(channel);
 
             var messageTuple = new Tuple<byte[], MessageSendMode>(data, sendMode);
-
-            if (IsServer)
-                FusionMessageHandler.ReadMessage(data);
+            if (IsHost)
+                NativeMessageHandler.ReadMessage(new() {
+                    Buffer = data,
+                    IsServerHandled =true,
+                });
             else
                 RiptideThreader.ClientSendQueue.Enqueue(messageTuple);
+        }
+
+        public override void DisconnectUser(string platformID) {
+            RiptideThreader.KickPlayer(platformID);
         }
     }
 }

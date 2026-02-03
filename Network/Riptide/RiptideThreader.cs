@@ -1,9 +1,10 @@
 ﻿using System.Net;
 using System.Threading;
-
+using FNPlus.Utilites;
 using LabFusion.Senders;
-
+using LabFusion.UI.Popups;
 using Riptide;
+using Riptide.Utils;
 
 namespace FNPlus.Network
 {
@@ -88,7 +89,7 @@ namespace FNPlus.Network
                     {
                         byte[] messageData = serverMessageTuple.Item1;
                         MessageSendMode sendMode = serverMessageTuple.Item2;
-                        ushort id = serverMessageTuple.Item3;
+                        ushort ID = serverMessageTuple.Item3;
                         bool isBroadcast = serverMessageTuple.Item4;
 
                         try
@@ -101,7 +102,7 @@ namespace FNPlus.Network
                             else if (isBroadcast && !IsServerRunning)
                                 _riptideClient.Send(message);
                             else
-                                _riptideServer.Send(message, id);
+                                _riptideServer.Send(message, ID);
                         }
                         catch (Exception ex)
                         {
@@ -176,21 +177,21 @@ namespace FNPlus.Network
 
         private static void OnClientDisconnected(object sender, ServerDisconnectedEventArgs e)
         {
-            ushort id = e.Client.Id;
+            ushort ID = e.Client.Id;
 
             RiptideNetworkLayer.ActionQueue.Enqueue(new Action(() =>
             {
-                if (id == PlayerIdManager.LocalId)
+                if (ID == PlayerIDManager.LocalID)
                     return;
 
                 // Make sure the user hasn't previously disconnected
-                if (PlayerIdManager.HasPlayerId(id))
+                if (PlayerIDManager.HasPlayerID(ID.ToString()))
                 {
                     // Update the mod so it knows this user has left
-                    InternalServerHelpers.OnUserLeave(id);
+                    InternalServerHelpers.OnPlayerLeft(ID.ToString());
 
                     // Send disconnect notif to everyone
-                    ConnectionSender.SendDisconnect(id);
+                    ConnectionSender.SendDisconnect(ID.ToString());
                 }
             }));
         }
@@ -228,7 +229,7 @@ namespace FNPlus.Network
 
                         RiptideNetworkLayer.ActionQueue.Enqueue(() =>
                         {
-                            PlayerIdManager.SetLongId(_riptideClient.Id);
+                            PlayerIDManager.SetPlatformID(_riptideClient.Id.ToString());
 
                             InternalServerHelpers.OnStartServer();
                         });
@@ -253,7 +254,7 @@ namespace FNPlus.Network
         {
             if (_isConnecting)
             {
-                FusionNotifier.Send(new FusionNotification()
+                Notifier.Send(new Notification()
                 {
                     Message = "Client is still connecting! Please wait until connection is finalized or failed.",
                     PopupLength = 5,
@@ -265,7 +266,7 @@ namespace FNPlus.Network
 
             if (IsClientConnected)
             {
-                FusionNotifier.Send(new FusionNotification()
+                Notifier.Send(new Notification()
                 {
                     Message = "Disconnect from the current server before connecting to another!",
                     PopupLength = 5,
@@ -283,7 +284,7 @@ namespace FNPlus.Network
                 ipString = IPUtils.DecodeIPAddress(serverCode);
             else
             {
-                FusionNotifier.Send(new FusionNotification()
+                Notifier.Send(new Notification()
                 {
                     Message = "Server Code or IP Address incorrect! Make sure you used the right code/IP!",
                     PopupLength = 5,
@@ -315,7 +316,7 @@ namespace FNPlus.Network
 
                     RiptideNetworkLayer.ActionQueue.Enqueue(() =>
                     {
-                        PlayerIdManager.SetLongId(_riptideClient.Id);
+                        PlayerIDManager.SetPlatformID(_riptideClient.Id.ToString());
 
                         ConnectionSender.SendConnectionRequest();
                     });
@@ -328,7 +329,7 @@ namespace FNPlus.Network
 
                     _isConnecting = false;
 
-                    FusionNotifier.Send(new FusionNotification()
+                    Notifier.Send(new Notification()
                     {
                         Title = "Failed to Connect!",
                         Message = $"REASON: {args.Reason}",
@@ -368,6 +369,12 @@ namespace FNPlus.Network
         private static void OnClientReceives(object sender, MessageReceivedEventArgs e)
         {
             RiptideNetworkLayer.MessageQueue.Enqueue(new Tuple<byte[], bool>(e.Message.GetBytes(), false));
+        }
+
+        internal static void KickPlayer(string platformID) {
+            lock (_riptideServer) {
+                _riptideServer.DisconnectClient(ushort.Parse(platformID));
+            }
         }
     }
 }

@@ -18,13 +18,14 @@ namespace FNPlus.Utilities
         private static void SetupPlayerUsername()
         {
             // Steam
-            if (Path.GetFileName(UnityEngine.Application.dataPath) == "BONELAB_Steam_Windows64_Data")
+            if (UnityEngine.Application.dataPath.ToLower().Contains("steam"))
             {
                 if (!SteamClient.IsValid)
                     SteamClient.Init(250820, false);
 
                 LocalPlayer.Username = SteamClient.Name;
                 SteamClient.Shutdown();
+                return;
             }
 
             // Oculus

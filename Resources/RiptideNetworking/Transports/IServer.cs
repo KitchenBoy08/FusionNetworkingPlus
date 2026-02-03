@@ -16,7 +16,7 @@ namespace Riptide.Transports
         /// <inheritdoc cref="Server.Port"/>
         ushort Port { get; }
         
-        /// <summary>Starts the transport and begins listening for incoming connections.</summary>
+        /// <summary>Starts the transport and begins Listening for incoming connections.</summary>
         /// <param name="port">The local port on which to listen for connections.</param>
         void Start(ushort port);
         
@@ -24,7 +24,7 @@ namespace Riptide.Transports
         /// <param name="connection">The connection to close.</param>
         void Close(Connection connection);
 
-        /// <summary>Closes all existing connections and stops listening for new connections.</summary>
+        /// <summary>Closes all existing connections and stops Listening for new connections.</summary>
         void Shutdown();
     }
 }

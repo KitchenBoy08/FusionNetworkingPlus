@@ -15,7 +15,7 @@ namespace Riptide
     /// <summary>The reason the connection attempt was rejected.</summary>
     public enum RejectReason : byte
     {
-        /// <summary>No response was received from the server (because the client has no internet connection, the server is offline, no server is listening on the target endpoint, etc.).</summary>
+        /// <summary>No response was received from the server (because the client has no internet connection, the server is offline, no server is Listening on the target endpoint, etc.).</summary>
         NoConnection,
         /// <summary>The client is already connected.</summary>
         AlreadyConnected,

@@ -493,7 +493,7 @@ namespace Riptide
         }
 
         /// <summary>Retrieves an available client ID.</summary>
-        /// <returns>The client ID. 0 if none were available.</returns>
+        /// <returns>The client ID. 0 if Idle were available.</returns>
         private ushort GetAvailableClientId()
         {
             if (availableClientIds.Count > 0)
